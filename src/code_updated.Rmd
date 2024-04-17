@@ -1,0 +1,346 @@
+---
+title: "Analysis of Employment and Electricity in united states during Recession and Covid"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(cowplot)
+library(gridExtra)
+library(dplyr)
+```
+
+```{r}
+
+df <- read_excel("C://Users/saima_x4lzx52/OneDrive/Desktop/R/Analysis-of-Employment-and-Electricity-in-United-States-During-Covid-and-Recession-Using-R/Employment and electricity.xlsx",sheet ="Sheet1")
+df1 <- read_excel("C://Users/saima_x4lzx52/OneDrive/Desktop/R/Analysis-of-Employment-and-Electricity-in-United-States-During-Covid-and-Recession-Using-R/Employment and electricity.xlsx",sheet ="Sheet2")
+
+View(df)
+View(df1)
+
+```
+
+
+```{r}
+df <- rename(df, Unemployment_Rate = "unemployment rate")
+
+#Recession Unemployment rate
+df_recession <- df %>%
+  filter(Year >= 2006 & Year <= 2015)
+
+View(df_recession)
+
+grouped_data_reccession <- aggregate(Unemployment_Rate ~ Year + State, data = df_recession, FUN = sum)
+
+# rename the columns
+names(grouped_data_reccession) <- c("Year", "State", "Unemployment_Rate")
+
+```
+
+```{r}
+#print(grouped_data_reccession)
+ggplot(data = grouped_data_reccession, aes(x = Year, y = Unemployment_Rate, fill = State)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(`Unemployment_Rate`, 2)),position = position_dodge(width = 0.9), vjust = -0.5)+
+  labs(x = "Year", y = "Sum of Unemployment Rate", fill = "State")+
+  ggtitle("Unemployment rate during recession 2006 to 2015")+
+  scale_x_continuous(breaks = unique(grouped_data_reccession$Year))
+```
+
+```{r}
+#Covid Un employment rate
+
+df_covid <- df %>%
+  filter(Year >= 2018 & Year <= 2022)
+
+View(df_covid)
+
+grouped_data_covid <- aggregate(Unemployment_Rate ~ Year + State, data = df_covid, FUN = sum)
+
+# rename the columns
+names(grouped_data_covid) <- c("Year", "State", "Unemployment_Rate")
+
+#print(grouped_data_covid)
+
+```
+
+```{r}
+# create a bar plot of the sum of unemployment rates by year and state
+ggplot(data = grouped_data_covid, aes(x = Year, y = Unemployment_Rate, fill = State)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = round(`Unemployment_Rate`, 2)),position = position_dodge(width = 0.9), vjust = -0.5)+
+  labs(x = "Year", y = "Sum of Unemployment Rate", fill = "State")+
+  ggtitle("Unemployment rate during Covid 2018 to 2022")
+```
+
+<!-- We can clearly see the spikes in the unemployment rate from 2008 to 2010 (Recession) and sudden spike in 2020 (Covid ). However one interesting fact is California has the highest effect from these events when compared to Florida and New York -->
+
+```{r}
+df_recession <- df1 %>%
+  filter(Year >= 2006 & Year <= 2015)
+
+df_recession <- df_recession %>%
+  group_by(state) %>% 
+  summarise(`total-supply` = sum(`total-supply`),
+            `total-net-generation` = sum(`total-net-generation`))
+
+print(df_recession)
+
+df_recession$`total-supply` <- df_recession$`total-supply`/1000000
+df_recession$`total-net-generation` <- df_recession$`total-net-generation`/1000000
+
+```
+
+```{r}
+# create a new data frame for plotting
+df_recession_plot <- data.frame(state = df_recession$state,
+                      total = df_recession$`total-supply`,
+                      type = "Total Supply") %>%
+  bind_rows(data.frame(state = df_recession$state,
+                       total = df_recession$`total-net-generation`,
+                       type = "Total Net Generation"))
+
+# create the plot
+ggplot(df_recession_plot, aes(x = state, y = total, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "State", y = "Total", title = "Total Supply and Net Generation by State during recession 2006 to 2015") +
+  scale_fill_manual(values = c("#1f77b4", "#ff7f0e"), name = NULL, labels = c("Total Supply", "Total Net Generation")) +
+  theme_minimal()
+```
+
+```{r}
+df_covid <- df1 %>%
+  filter(Year >= 2018 & Year <= 2022)
+
+df_covid <- df_covid %>%
+  group_by(state) %>% 
+  summarise(`total-supply` = sum(`total-supply`),
+            `total-net-generation` = sum(`total-net-generation`))
+
+print(df_covid)
+
+df_covid$`total-supply` <- df_covid$`total-supply`/1000000
+df_covid$`total-net-generation` <- df_covid$`total-net-generation`/1000000
+
+```
+
+```{r}
+# create a new data frame for plotting
+df_covid_plot <- data.frame(state = df_covid$state,
+                            total = df_covid$`total-supply`,
+                            type = "Total Supply") %>%
+  bind_rows(data.frame(state = df_covid$state,
+                       total = df_covid$`total-net-generation`,
+                       type = "Total Net Generation"))
+
+# create the plot
+ggplot(df_covid_plot, aes(x = state, y = total, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "State", y = "Total", title = "Total Supply and Net Generation by State during covid 2018 to 2022") +
+  scale_fill_manual(values = c("#1f77b4", "#ff7f0e"), name = NULL, labels = c("Total Supply", "Total Net Generation")) +
+  theme_minimal()
+```
+<!-- Over the years it is significatly shown that electricity supply is reduced for all three states but however relately compared to other two states California had a reduced supply as well as generation. This is observed more during the pandemic -->
+
+```{r}
+df_california_import <- df1 %>%
+  filter(Year >= 2006 & Year <= 2022 & state == 'CA')
+df_florida_import <- df1 %>%
+  filter(Year >= 2006 & Year <= 2022 & state == 'FL')
+df_new_york_import <- df1 %>%
+  filter(Year >= 2006 & Year <= 2022 & state == 'NY')
+
+# Aggregate data by year and state
+grouped_data_import_california <- aggregate(cbind(`total-international-imports`, `total-international-exports`) ~ Year+state, 
+                                            data = df_california_import, FUN = sum)
+grouped_data_import_florida <- aggregate(cbind(`total-international-imports`, `total-international-exports`) ~ Year+state, 
+                                         data = df_florida_import, FUN = sum)
+grouped_data_import_new_york <- aggregate(cbind(`total-international-imports`, `total-international-exports`) ~ Year+state, 
+                                          data = df_new_york_import, FUN = sum)
+
+grouped_data_import_california$`total-international-imports` <- grouped_data_import_california$`total-international-imports`/1000000
+grouped_data_import_florida$`total-international-imports` <- grouped_data_import_florida$`total-international-imports`/1000000
+grouped_data_import_new_york$`total-international-imports` <- grouped_data_import_new_york$`total-international-imports`/1000000
+
+
+grouped_data_import_california$`total-international-exports` <- grouped_data_import_california$`total-international-exports`/1000000
+grouped_data_import_florida$`total-international-exports` <- grouped_data_import_florida$`total-international-exports`/1000000
+grouped_data_import_new_york$`total-international-exports` <- grouped_data_import_new_york$`total-international-exports`/1000000
+
+print(grouped_data_import_california)
+print(grouped_data_import_florida)
+print(grouped_data_import_new_york)
+
+
+```
+```{r}
+# Create plot for California
+p1_import <- ggplot(grouped_data_import_california, aes(x = Year)) +
+  geom_line(aes(y = `total-international-imports`), color = "red") +
+  geom_bar(aes(y = `total-international-exports`), stat = "identity", fill = "blue", position = "dodge")+
+  scale_y_continuous(name = "Total International Imports (Million kWh)", sec.axis = sec_axis(~./1000, name = "Total International Exports (Billion kWh)", labels = scales::comma)) +
+  labs(title = "Electricity International Imports and Exports for California in Millions", x = "Year")+
+  theme_minimal()
+
+# Create plot for Florida
+p2_import <- ggplot(grouped_data_import_florida, aes(x = Year)) +
+  geom_line(aes(y = `total-international-imports`), color = "red") +
+  geom_bar(aes(y = `total-international-exports`), stat = "identity", fill = "blue", position = "dodge")+
+  scale_y_continuous(name = "Total International Imports (Million kWh)", sec.axis = sec_axis(~./1000, name = "Total International Exports (Billion kWh)", labels = scales::comma)) +
+  labs(title = "Electricity International Imports and Exports for Florida in Millions", x = "Year")+
+  theme_minimal()
+
+
+# Create plot for New York
+p3_import <- ggplot(grouped_data_import_new_york, aes(x = Year)) +
+  geom_line(aes(y = `total-international-imports`), color = "red") +
+   geom_bar(aes(y = `total-international-exports`), stat = "identity", fill = "blue", position = "dodge")+
+  scale_y_continuous(name = "Total International Imports (Million kWh)", sec.axis = sec_axis(~./1000, name = "Total International Exports (Billion kWh)", labels = scales::comma)) +
+  labs(title = "Electricity International Imports and Exports for New York in Millions", x = "Year")+
+  theme_minimal()
+
+# Create combined plot
+grid.arrange(p1_import, p2_import, p3_import, ncol=1)
+```
+<!-- During recession electricity imports and exports are reduced according to the graph but however this is not true during the pandemic as New York showed high imports while california showed highly reduced exports. Florida staded with zero imports or exports over the years -->
+
+
+```{r}
+
+df <- rename(df, labor_force_rate = "labor force participation rate",labor_force = 'labor force')
+
+# Filter data for California, Florida, and New York and only keep data from 2006 to 2014
+df_california_labor_recession <- df %>%
+  filter(Year >= 2006 & Year <= 2014 & State == 'California')
+df_florida_labor_recession <- df %>%
+  filter(Year >= 2006 & Year <= 2014 & State == 'Florida')
+df_new_york_labor_recession <- df %>%
+  filter(Year >= 2006 & Year <= 2014 & State == 'New York')
+
+# Aggregate data by year and state
+grouped_data_labor_california_recession <- aggregate(cbind(labor_force_rate, labor_force) ~ Year+State, 
+                                                     data = df_california_labor_recession, FUN = sum)
+grouped_data_labor_florida_recession <- aggregate(cbind(labor_force_rate, labor_force) ~ Year+State, 
+                                                  data = df_florida_labor_recession, FUN = sum)
+grouped_data_labor_new_york_recession <- aggregate(cbind(labor_force_rate, labor_force) ~ Year+State, 
+                                                   data = df_new_york_labor_recession, FUN = sum)
+
+```
+
+```{r}
+# Create the first plot for California
+p1_recession <- ggplot(data = grouped_data_labor_california_recession, aes(x = Year),) +
+  geom_line(aes(y = labor_force/1000000), color = "steelblue", size = 1.5) +
+  geom_bar(aes(y = labor_force_rate), stat = "identity", fill = "orange", width = 0.5) +
+  scale_y_continuous(name = "Labor Force (in Millions)", 
+                     sec.axis = sec_axis(~., name = "Labor Force Rate")) +
+  labs(title = "Labor Force and Labor Force Rate in California (2006-2014)") +
+  scale_x_continuous(breaks = unique(grouped_data_labor_california_recession$Year)) +
+  theme_bw() +
+  geom_text(aes(y = labor_force/1000000, label = paste0(round(labor_force/1000000, 1), "M")),
+            position = position_stack(vjust = 0.5), size = 3, color = "steelblue") +
+  geom_text(aes(y = labor_force_rate, label = paste0(round(labor_force_rate, 1))),
+            position = position_stack(vjust = 0.5), size = 3, color = "black", hjust = -0.1)
+
+# Create the second plot for Florida
+p2_recession <- ggplot(data = grouped_data_labor_florida_recession, aes(x = Year)) +
+  geom_line(aes(y = labor_force/1000000), color = "steelblue", size = 1.5) +
+  geom_bar(aes(y = labor_force_rate), stat = "identity", fill = "blue", width = 0.5) +
+  scale_y_continuous(name = "Labor Force (in Millions)", 
+                     sec.axis = sec_axis(~., name = "Labor Force Rate")) +
+  labs(title = "Labor Force and Labor Force Rate in Florida (2006-2014)") +
+  scale_x_continuous(breaks = unique(grouped_data_labor_florida_recession$Year)) +
+  theme_bw() +
+  geom_text(aes(y = labor_force/1000000, label = paste0(round(labor_force/1000000, 1), "M")),
+            position = position_stack(vjust = 0.5), size = 3, color = "red") +
+  geom_text(aes(y = labor_force_rate, label = paste0(round(labor_force_rate, 1))),
+            position = position_stack(vjust = 0.5), size = 3, color = "red", hjust = -0.1)
+
+# Create the third plot for New York
+p3_recession <- ggplot(data = grouped_data_labor_new_york_recession, aes(x = Year)) +
+  geom_line(aes(y = labor_force/1000000), color = "steelblue", size = 1.5) +
+  geom_bar(aes(y = labor_force_rate), stat = "identity", fill = "red", width = 0.5) +
+  scale_y_continuous(name = "Labor Force (in Millions)", 
+                     sec.axis = sec_axis(~., name = "Labor Force Rate")) +
+  labs(title = "Labor Force and Labor Force Rate in New York (2006-2014")+
+  scale_x_continuous(breaks = unique(grouped_data_labor_new_york_recession$Year)) +
+  theme_bw() +
+  geom_text(aes(y = labor_force/1000000, label = paste0(round(labor_force/1000000, 1), "M")),
+            position = position_stack(vjust = 0.5), size = 3, color = "steelblue") +
+  geom_text(aes(y = labor_force_rate, label = paste0(round(labor_force_rate, 1))),
+            position = position_stack(vjust = 0.5), size = 3, color = "black", hjust = -0.1)
+                                                                   
+grid.arrange(p1_recession, p2_recession, p3_recession, ncol=1)
+```
+
+```{r}
+df_california_labor_covid <- df %>%
+  filter(Year >= 2018 & Year <= 2022 & State == 'California')
+df_florida_labor_covid <- df %>%
+  filter(Year >= 2018 & Year <= 2022 & State == 'Florida')
+df_new_york_labor_covid <- df %>%
+  filter(Year >= 2018 & Year <= 2022 & State == 'New York')
+
+
+grouped_data_labor_california_covid <- aggregate(cbind(labor_force_rate, labor_force) ~ Year+State, 
+                                                 data = df_california_labor_covid, FUN = sum)
+grouped_data_labor_florida_covid <- aggregate(cbind(labor_force_rate, labor_force) ~ Year+State, 
+                                              data = df_florida_labor_covid, FUN = sum)
+grouped_data_labor_new_york_covid <- aggregate(cbind(labor_force_rate, labor_force) ~ Year+State, 
+                                               data = df_new_york_labor_covid, FUN = sum)
+```
+
+```{r}
+p1_covid <- ggplot(data = grouped_data_labor_california_covid, aes(x = Year)) +
+  geom_line(aes(y = labor_force/1000000), color = "steelblue", size = 1.5) +
+  geom_bar(aes(y = labor_force_rate), stat = "identity", fill = "orange", width = 0.5) +
+  scale_y_continuous(name = "Labor Force (in Millions)", 
+                     sec.axis = sec_axis(~., name = "Labor Force Rate")) +
+  labs(title = "Labor Force and Labor Force Rate in California (2018-2022)") +
+  scale_x_continuous(breaks = unique(grouped_data_labor_california_covid$Year)) +
+  theme_bw() +
+  geom_text(aes(y = labor_force/1000000, label = paste0(round(labor_force/1000000, 1), "M")),
+            position = position_stack(vjust = 0.5), size = 3, color = "steelblue") +
+  geom_text(aes(y = labor_force_rate, label = paste0(round(labor_force_rate, 1))),
+            position = position_stack(vjust = 0.5), size = 3, color = "black", hjust = -0.1)
+
+
+p2_covid <- ggplot(data = grouped_data_labor_florida_covid, aes(x = Year)) +
+  geom_line(aes(y = labor_force/1000000), color = "steelblue", size = 1.5) +
+  geom_bar(aes(y = labor_force_rate), stat = "identity", fill = "blue", width = 0.5) +
+  scale_y_continuous(name = "Labor Force (in Millions)", 
+                     sec.axis = sec_axis(~., name = "Labor Force Rate")) +
+  labs(title = "Labor Force and Labor Force Rate in Florida (2018-2022)") +
+  scale_x_continuous(breaks = unique(grouped_data_labor_florida_covid$Year)) +
+  theme_bw() +
+  geom_text(aes(y = labor_force/1000000, label = paste0(round(labor_force/1000000, 1), "M")),
+            position = position_stack(vjust = 0.5), size = 3, color = "steelblue") +
+  geom_text(aes(y = labor_force_rate, label = paste0(round(labor_force_rate, 1))),
+            position = position_stack(vjust = 0.5), size = 3, color = "black", hjust = -0.1)
+
+
+p3_covid <- ggplot(data = grouped_data_labor_new_york_covid, aes(x = Year)) +
+  geom_line(aes(y = labor_force/1000000), color = "steelblue", size = 1.5) +
+  geom_bar(aes(y = labor_force_rate), stat = "identity", fill = "red", width = 0.5) +
+  scale_y_continuous(name = "Labor Force (in Millions)", 
+                     sec.axis = sec_axis(~., name = "Labor Force Rate")) +
+  labs(title = "Labor Force and Labor Force Rate in New York (2018-2022") +
+  scale_x_continuous(breaks = unique(grouped_data_labor_new_york_covid$Year)) +
+  theme_bw() +
+  geom_text(aes(y = labor_force/1000000, label = paste0(round(labor_force/1000000, 1), "M")),
+            position = position_stack(vjust = 0.5), size = 3, color = "steelblue") +
+  geom_text(aes(y = labor_force_rate, label = paste0(round(labor_force_rate, 1))),
+            position = position_stack(vjust = 0.5), size = 3, color = "black", hjust = -0.1)
+
+
+grid.arrange(p1_covid, p2_covid, p3_covid, ncol=1)
+
+```
+<!--
+Labor Force participation didn't get effected by Recession significantly but however there is slight jump during the covid Pandemic. California seems to be highest state with a good ratio of labor force to Labor force participation 
+--!>
+
+
+
